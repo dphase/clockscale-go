@@ -70,33 +70,42 @@ Clockscale is a terminal UI application that displays the current time across mu
 
 ## Configuration
 
-- Timezones and basic configuration stored in a config file (e.g. `~/.config/clockscale/config.json`)
+- Timezones and basic configuration stored in a config file (e.g. `~/.config/clockscale/config.yaml`)
 - Supports adding/removing timezones via config or interactive commands
 
 ### Sample Configuration File
-```json
-{
-  timezones: [
-    { timezone: "Israel", label: "IDT" },
-    { timezone: "Zulu", label: "Z" },
-    { timezone: "US/Central", label: "Local", local: true },
-    { timezone: "US/Pacific", label: "PDT" },
-    { timezone: "US/Eastern", label: "EDT" },
-  ]
-  colors: {
-    defaultTimezoneLabel: { bg: "default", fg: "#02ffff" }
-    localTimezoneLabel: { bg: "default", fg: "#ffff00" }
-    defaultCell: {
-      evenBg: "#1c1c1c",
-      oddBg: "#2d2e2e",
-      fg: "#dadada"
-    },
-    currentTimeCells: {
-      default: { bg: "#5e5e86", fg: "#90ee90" },
-      local: { bg: "#b4420a", fg: "#ffff00" }
-    }
-  }
-}
+```yaml
+timezones:
+  - timezone: Israel
+    label: IDT
+  - timezone: Zulu
+    label: Z
+  - timezone: US/Central
+    label: Local
+    local: true
+  - timezone: US/Pacific
+    label: PDT
+  - timezone: US/Eastern
+    label: EDT
+
+colors:
+  defaultTimezoneLabel:
+    bg: default
+    fg: "#02ffff"
+  localTimezoneLabel:
+    bg: default
+    fg: "#ffff00"
+  defaultCell:
+    evenBg: "#1c1c1c"
+    oddBg: "#2d2e2e"
+    fg: "#dadada"
+  currentTimeCells:
+    default:
+      bg: "#5e5e86"
+      fg: "#90ee90"
+    local:
+      bg: "#b4420a"
+      fg: "#ffff00"
 ```
 
 ---

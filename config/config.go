@@ -1,43 +1,44 @@
 package config
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
+
+	"gopkg.in/yaml.v3"
 )
 
 type TimezoneConfig struct {
-	Timezone string `json:"timezone"`
-	Label    string `json:"label"`
-	Local    bool   `json:"local,omitempty"`
+	Timezone string `yaml:"timezone"`
+	Label    string `yaml:"label"`
+	Local    bool   `yaml:"local,omitempty"`
 }
 
 type ColorPair struct {
-	Bg string `json:"bg"`
-	Fg string `json:"fg"`
+	Bg string `yaml:"bg"`
+	Fg string `yaml:"fg"`
 }
 
 type DefaultCellColors struct {
-	EvenBg string `json:"evenBg"`
-	OddBg  string `json:"oddBg"`
-	Fg     string `json:"fg"`
+	EvenBg string `yaml:"evenBg"`
+	OddBg  string `yaml:"oddBg"`
+	Fg     string `yaml:"fg"`
 }
 
 type CurrentTimeCellColors struct {
-	Default ColorPair `json:"default"`
-	Local   ColorPair `json:"local"`
+	Default ColorPair `yaml:"default"`
+	Local   ColorPair `yaml:"local"`
 }
 
 type ColorsConfig struct {
-	DefaultTimezoneLabel ColorPair             `json:"defaultTimezoneLabel"`
-	LocalTimezoneLabel   ColorPair             `json:"localTimezoneLabel"`
-	DefaultCell          DefaultCellColors     `json:"defaultCell"`
-	CurrentTimeCells     CurrentTimeCellColors `json:"currentTimeCells"`
+	DefaultTimezoneLabel ColorPair             `yaml:"defaultTimezoneLabel"`
+	LocalTimezoneLabel   ColorPair             `yaml:"localTimezoneLabel"`
+	DefaultCell          DefaultCellColors     `yaml:"defaultCell"`
+	CurrentTimeCells     CurrentTimeCellColors `yaml:"currentTimeCells"`
 }
 
 type Config struct {
-	Timezones []TimezoneConfig `json:"timezones"`
-	Colors    ColorsConfig     `json:"colors"`
+	Timezones []TimezoneConfig `yaml:"timezones"`
+	Colors    ColorsConfig     `yaml:"colors"`
 }
 
 func DefaultConfig() *Config {
@@ -71,13 +72,13 @@ var DirOverride string
 
 func ConfigPath() (string, error) {
 	if DirOverride != "" {
-		return filepath.Join(DirOverride, "config.json"), nil
+		return filepath.Join(DirOverride, "config.yaml"), nil
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".config", "clockscale", "config.json"), nil
+	return filepath.Join(home, ".config", "clockscale", "config.yaml"), nil
 }
 
 func Load() (*Config, error) {
@@ -100,7 +101,7 @@ func Load() (*Config, error) {
 	}
 
 	var cfg Config
-	if err := json.Unmarshal(data, &cfg); err != nil {
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, err
 	}
 	return &cfg, nil
@@ -118,7 +119,7 @@ func bootstrap(path string, cfg *Config) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
 	}
-	data, err := json.MarshalIndent(cfg, "", "  ")
+	data, err := yaml.Marshal(cfg)
 	if err != nil {
 		return err
 	}

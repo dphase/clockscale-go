@@ -1,10 +1,11 @@
 package config
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func useTempDir(t *testing.T) {
@@ -58,16 +59,16 @@ func TestDefaultConfigTimezonesAreValid(t *testing.T) {
 	}
 }
 
-func TestDefaultConfigRoundTripsJSON(t *testing.T) {
+func TestDefaultConfigRoundTripsYAML(t *testing.T) {
 	cfg := DefaultConfig()
 
-	data, err := json.MarshalIndent(cfg, "", "  ")
+	data, err := yaml.Marshal(cfg)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
 
 	var roundtripped Config
-	if err := json.Unmarshal(data, &roundtripped); err != nil {
+	if err := yaml.Unmarshal(data, &roundtripped); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
 
@@ -86,7 +87,7 @@ func TestDefaultConfigRoundTripsJSON(t *testing.T) {
 
 func TestBootstrapCreatesFileAndDirs(t *testing.T) {
 	tmpDir := t.TempDir()
-	path := filepath.Join(tmpDir, "subdir", "config.json")
+	path := filepath.Join(tmpDir, "subdir", "config.yaml")
 
 	cfg := DefaultConfig()
 	if err := bootstrap(path, cfg); err != nil {
@@ -99,7 +100,7 @@ func TestBootstrapCreatesFileAndDirs(t *testing.T) {
 	}
 
 	var loaded Config
-	if err := json.Unmarshal(data, &loaded); err != nil {
+	if err := yaml.Unmarshal(data, &loaded); err != nil {
 		t.Fatalf("unmarshal bootstrapped file: %v", err)
 	}
 
