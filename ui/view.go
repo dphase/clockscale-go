@@ -29,7 +29,7 @@ func shiftLightness(hex string, steps float64) string {
 }
 
 const (
-	cellWidth = 3
+	cellWidth = 4
 	numHours  = 24
 )
 
@@ -99,7 +99,8 @@ func (m Model) View() string {
 		labelStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color(labelFg)).
 			Width(labelWidth).
-			Align(lipgloss.Right)
+			Align(lipgloss.Right).
+			PaddingRight(1)
 
 		// In delete mode, highlight the selected row's label
 		if m.state == stateDelete && rowIdx == m.cursor {
@@ -143,6 +144,7 @@ func (m Model) View() string {
 				cellStyle.
 					Width(cellWidth).
 					Align(lipgloss.Right).
+					PaddingRight(1).
 					Render(fmt.Sprintf("%d", localHour)),
 			)
 		}

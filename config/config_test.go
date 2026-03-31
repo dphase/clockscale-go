@@ -7,6 +7,14 @@ import (
 	"testing"
 )
 
+func useTempDir(t *testing.T) {
+	t.Helper()
+	tmp := t.TempDir()
+	old := DirOverride
+	DirOverride = tmp
+	t.Cleanup(func() { DirOverride = old })
+}
+
 func TestDefaultConfig(t *testing.T) {
 	cfg := DefaultConfig()
 
@@ -101,56 +109,47 @@ func TestBootstrapCreatesFileAndDirs(t *testing.T) {
 }
 
 func TestLoadCreatesDefaultWhenMissing(t *testing.T) {
-	tmpDir := t.TempDir()
-	path := filepath.Join(tmpDir, "clockscale", "config.json")
+	useTempDir(t)
 
-	// Override ConfigPath for this test by writing and reading directly
-	cfg := DefaultConfig()
-	if err := bootstrap(path, cfg); err != nil {
-		t.Fatalf("bootstrap: %v", err)
-	}
-
-	data, err := os.ReadFile(path)
+	cfg, err := Load()
 	if err != nil {
-		t.Fatalf("read: %v", err)
+		t.Fatalf("Load: %v", err)
 	}
 
-	var loaded Config
-	if err := json.Unmarshal(data, &loaded); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-
-	if len(loaded.Timezones) == 0 {
+	if len(cfg.Timezones) == 0 {
 		t.Error("loaded config has no timezones")
+	}
+
+	// Verify the file was actually created on disk
+	path, _ := ConfigPath()
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		t.Error("config file was not created on disk")
 	}
 }
 
 func TestSaveOverwritesExistingFile(t *testing.T) {
-	tmpDir := t.TempDir()
-	path := filepath.Join(tmpDir, "config.json")
+	useTempDir(t)
 
-	original := DefaultConfig()
-	if err := bootstrap(path, original); err != nil {
-		t.Fatalf("bootstrap: %v", err)
+	// Create initial config via Load (bootstraps default)
+	original, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
 	}
 
-	modified := DefaultConfig()
+	// Modify and save
+	modified := *original
 	modified.Timezones = append(modified.Timezones, TimezoneConfig{
 		Timezone: "Europe/London",
 		Label:    "GMT",
 	})
-	if err := bootstrap(path, modified); err != nil {
-		t.Fatalf("save modified: %v", err)
+	if err := Save(&modified); err != nil {
+		t.Fatalf("Save: %v", err)
 	}
 
-	data, err := os.ReadFile(path)
+	// Re-load and verify
+	loaded, err := Load()
 	if err != nil {
-		t.Fatalf("read: %v", err)
-	}
-
-	var loaded Config
-	if err := json.Unmarshal(data, &loaded); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+		t.Fatalf("Load after save: %v", err)
 	}
 
 	if len(loaded.Timezones) != len(modified.Timezones) {

@@ -65,7 +65,14 @@ func DefaultConfig() *Config {
 	}
 }
 
+// DirOverride, when non-empty, replaces the default config directory.
+// This exists so tests can redirect all config I/O to a temp directory.
+var DirOverride string
+
 func ConfigPath() (string, error) {
+	if DirOverride != "" {
+		return filepath.Join(DirOverride, "config.json"), nil
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err

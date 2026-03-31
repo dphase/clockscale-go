@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -9,6 +10,17 @@ import (
 
 	"clockscale/config"
 )
+
+// stripANSI removes ANSI escape sequences so we can inspect raw text content.
+var ansiRe = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
+
+func useTempConfigDir(t *testing.T) {
+	t.Helper()
+	tmp := t.TempDir()
+	old := config.DirOverride
+	config.DirOverride = tmp
+	t.Cleanup(func() { config.DirOverride = old })
+}
 
 func testConfig() *config.Config {
 	return &config.Config{
@@ -203,6 +215,7 @@ func TestWindowSizeMsg(t *testing.T) {
 }
 
 func TestTickUpdatesTime(t *testing.T) {
+	useTempConfigDir(t)
 	cfg := testConfig()
 	m := New(cfg)
 
@@ -249,7 +262,60 @@ func TestShiftLightness(t *testing.T) {
 	}
 }
 
+func TestCellsHavePadding(t *testing.T) {
+	cfg := testConfig()
+	m := New(cfg)
+
+	view := m.View()
+	lines := strings.Split(view, "\n")
+
+	for i, line := range lines {
+		if i >= len(cfg.Timezones) {
+			break
+		}
+		stripped := ansiRe.ReplaceAllString(line, "")
+
+		// Label should be followed by a space (right padding) before the first hour cell.
+		label := cfg.Timezones[i].Label
+		labelIdx := strings.Index(stripped, label)
+		if labelIdx == -1 {
+			t.Errorf("row %d: label %q not found in stripped line", i, label)
+			continue
+		}
+		afterLabel := stripped[labelIdx+len(label):]
+		if len(afterLabel) == 0 || afterLabel[0] != ' ' {
+			t.Errorf("row %d: expected space padding after label %q", i, label)
+		}
+
+		// Walk the hour area checking that every digit-group (cell) has:
+		//   - at least 1 space before the first digit (left padding)
+		//   - at least 1 space after the last digit (right padding)
+		hourArea := afterLabel
+		for j := 0; j < len(hourArea); j++ {
+			ch := hourArea[j]
+			if ch < '0' || ch > '9' {
+				continue
+			}
+			// Found start of a digit group — check left padding
+			if j == 0 || hourArea[j-1] != ' ' {
+				t.Errorf("row %d: digit at position %d missing left padding space", i, j)
+			}
+			// Advance past all digits in this group
+			end := j
+			for end < len(hourArea) && hourArea[end] >= '0' && hourArea[end] <= '9' {
+				end++
+			}
+			// Check right padding
+			if end < len(hourArea) && hourArea[end] != ' ' {
+				t.Errorf("row %d: digit group ending at position %d missing right padding space", i, end-1)
+			}
+			j = end // skip past this group
+		}
+	}
+}
+
 func TestDeleteModeNavigateAndDelete(t *testing.T) {
+	useTempConfigDir(t)
 	cfg := testConfig()
 	m := New(cfg)
 	originalCount := len(m.config.Timezones)
