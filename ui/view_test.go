@@ -369,6 +369,117 @@ func TestNarrowTerminalLimitsColumns(t *testing.T) {
 	}
 }
 
+func TestViewNilConfigShowsLoading(t *testing.T) {
+	m := Model{} // config is nil
+	view := m.View()
+	if view != "Loading..." {
+		t.Errorf("expected %q, got %q", "Loading...", view)
+	}
+}
+
+func TestViewAddModeOverlay(t *testing.T) {
+	cfg := testConfig()
+	m := New(cfg)
+	m.state = stateAdd
+	m.input = "Europe/London"
+	m.width = 100
+
+	view := m.View()
+	stripped := ansiRe.ReplaceAllString(view, "")
+	if !strings.Contains(stripped, "Timezone: Europe/London_") {
+		t.Error("add mode overlay should show current input with cursor")
+	}
+}
+
+func TestViewDeleteModeOverlay(t *testing.T) {
+	cfg := testConfig()
+	m := New(cfg)
+	m.state = stateDelete
+	m.cursor = 0
+	m.width = 100
+
+	view := m.View()
+	stripped := ansiRe.ReplaceAllString(view, "")
+	if !strings.Contains(stripped, "Enter delete") {
+		t.Error("delete mode overlay should show instructions")
+	}
+	if !strings.Contains(stripped, "Esc cancel") {
+		t.Error("delete mode overlay should mention Esc")
+	}
+}
+
+func TestViewErrorMessageDisplay(t *testing.T) {
+	cfg := testConfig()
+	m := New(cfg)
+	m.errMsg = "Unknown timezone: Foo/Bar"
+	m.width = 100
+
+	// Without help shown — errMsg should appear on its own
+	view := m.View()
+	stripped := ansiRe.ReplaceAllString(view, "")
+	if !strings.Contains(stripped, "Unknown timezone: Foo/Bar") {
+		t.Error("errMsg should be displayed when set")
+	}
+
+	// With help shown — errMsg should appear alongside help
+	m.showHelp = true
+	view = m.View()
+	stripped = ansiRe.ReplaceAllString(view, "")
+	if !strings.Contains(stripped, "Unknown timezone: Foo/Bar") {
+		t.Error("errMsg should still appear when help is shown")
+	}
+	if !strings.Contains(stripped, "[a] add") {
+		t.Error("help text should appear when showHelp is true")
+	}
+}
+
+func TestViewSingleTimezone(t *testing.T) {
+	cfg := testConfig()
+	cfg.Timezones = []config.TimezoneConfig{
+		{Timezone: "UTC", Label: "UTC"},
+	}
+	m := New(cfg)
+	m.width = 100
+
+	view := m.View()
+	lines := strings.Split(view, "\n")
+	if len(lines) < 1 {
+		t.Fatal("expected at least 1 line")
+	}
+	stripped := ansiRe.ReplaceAllString(lines[0], "")
+	if !strings.Contains(stripped, "UTC") {
+		t.Error("single timezone view should contain the label")
+	}
+}
+
+func TestViewNoLocalTimezone(t *testing.T) {
+	cfg := testConfig()
+	// Remove local flag from all timezones
+	for i := range cfg.Timezones {
+		cfg.Timezones[i].Local = false
+	}
+	m := New(cfg)
+	m.width = 100
+
+	// Should not panic; should fall back to UTC
+	view := m.View()
+	if view == "" {
+		t.Error("view should not be empty with no local timezone")
+	}
+}
+
+func TestViewVeryNarrowTerminal(t *testing.T) {
+	cfg := testConfig()
+	m := New(cfg)
+	m.width = 10 // extremely narrow
+
+	// Should not panic
+	view := m.View()
+	if view == "" {
+		t.Error("view should not be empty even at very narrow width")
+	}
+}
+
 func TestDeleteModeNavigateAndDelete(t *testing.T) {
 	useTempConfigDir(t)
 	cfg := testConfig()

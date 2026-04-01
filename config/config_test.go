@@ -202,6 +202,118 @@ func TestMigrateJSONToYAML(t *testing.T) {
 	}
 }
 
+func TestLoadCorruptYAML(t *testing.T) {
+	useTempDir(t)
+
+	// Bootstrap a valid file first, then overwrite with garbage
+	_, err := Load()
+	if err != nil {
+		t.Fatalf("initial Load: %v", err)
+	}
+
+	path, _ := ConfigPath()
+	if err := os.WriteFile(path, []byte("{{{{not valid yaml!!!!"), 0644); err != nil {
+		t.Fatalf("write corrupt yaml: %v", err)
+	}
+
+	_, err = Load()
+	if err == nil {
+		t.Error("expected error loading corrupt YAML, got nil")
+	}
+}
+
+func TestLoadUnreadableFile(t *testing.T) {
+	useTempDir(t)
+
+	// Bootstrap a valid file, then make it unreadable
+	_, err := Load()
+	if err != nil {
+		t.Fatalf("initial Load: %v", err)
+	}
+
+	path, _ := ConfigPath()
+	if err := os.Chmod(path, 0000); err != nil {
+		t.Fatalf("chmod: %v", err)
+	}
+	t.Cleanup(func() { os.Chmod(path, 0644) })
+
+	_, err = Load()
+	if err == nil {
+		t.Error("expected error loading unreadable file, got nil")
+	}
+}
+
+func TestMigrateCorruptJSON(t *testing.T) {
+	useTempDir(t)
+
+	// Write corrupt JSON where migration would look for it
+	jsonPath := filepath.Join(DirOverride, "config.json")
+	if err := os.WriteFile(jsonPath, []byte("{not json}"), 0644); err != nil {
+		t.Fatalf("write corrupt json: %v", err)
+	}
+
+	// Load should fall through migration failure and bootstrap default
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	// Should get default config since migration failed
+	if len(cfg.Timezones) == 0 {
+		t.Error("expected default config timezones after failed migration")
+	}
+}
+
+func TestConfigPathDefault(t *testing.T) {
+	// Clear both overrides
+	oldPath := PathOverride
+	oldDir := DirOverride
+	PathOverride = ""
+	DirOverride = ""
+	t.Cleanup(func() {
+		PathOverride = oldPath
+		DirOverride = oldDir
+	})
+
+	path, err := ConfigPath()
+	if err != nil {
+		t.Fatalf("ConfigPath: %v", err)
+	}
+
+	home, _ := os.UserHomeDir()
+	expected := filepath.Join(home, ".config", "clockscale", "config.yaml")
+	if path != expected {
+		t.Errorf("expected %q, got %q", expected, path)
+	}
+}
+
+func TestSaveAndReload(t *testing.T) {
+	useTempDir(t)
+
+	cfg := &Config{
+		Timezones: []TimezoneConfig{
+			{Timezone: "Europe/London", Label: "GMT"},
+		},
+		Colors: DefaultConfig().Colors,
+	}
+
+	if err := Save(cfg); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	loaded, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	if len(loaded.Timezones) != 1 {
+		t.Fatalf("expected 1 timezone, got %d", len(loaded.Timezones))
+	}
+	if loaded.Timezones[0].Timezone != "Europe/London" {
+		t.Errorf("expected Europe/London, got %s", loaded.Timezones[0].Timezone)
+	}
+}
+
 func TestPathOverride(t *testing.T) {
 	tmp := t.TempDir()
 	customPath := filepath.Join(tmp, "custom", "my-config.yaml")
