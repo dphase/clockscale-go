@@ -59,19 +59,25 @@ func (m Model) View() string {
 	}
 	labelWidth := maxLabelLen + 2
 
-	// Determine how many hour columns fit in the terminal width.
-	// Label uses labelWidth + 1 (PaddingRight). Each cell uses cellWidth + 1 (PaddingRight).
-	labelTotal := labelWidth + 1
-	cellTotal := cellWidth + 1
+	// Determine visible columns and effective cell width based on terminal width.
+	// Lipgloss Width() includes PaddingRight(), so rendered width = Width value.
+	effectiveCellWidth := cellWidth
 	visibleCols := numHours
 	if m.width > 0 {
-		available := m.width - labelTotal
-		if available < cellTotal {
-			available = cellTotal
-		}
-		fit := available / cellTotal
-		if fit < visibleCols {
+		available := m.width - labelWidth
+		fit := available / cellWidth
+		if fit >= numHours {
+			// Wide terminal: expand cells to fill all available space.
+			expanded := available / numHours
+			if expanded > effectiveCellWidth {
+				effectiveCellWidth = expanded
+			}
+		} else {
+			// Narrow terminal: show only what fits; use scroll for the rest.
 			visibleCols = fit
+			if visibleCols < 1 {
+				visibleCols = 1
+			}
 		}
 	}
 
@@ -165,7 +171,7 @@ func (m Model) View() string {
 
 			row.WriteString(
 				cellStyle.
-					Width(cellWidth).
+					Width(effectiveCellWidth).
 					Align(lipgloss.Right).
 					PaddingRight(1).
 					Render(fmt.Sprintf("%d", localHour)),
