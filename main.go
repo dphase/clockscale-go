@@ -11,7 +11,7 @@ import (
 	"clockscale/ui"
 )
 
-const version = "1.2.2"
+const version = "1.2.4"
 
 func main() {
 	var (
