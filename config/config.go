@@ -1,8 +1,10 @@
 package config
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -66,11 +68,18 @@ func DefaultConfig() *Config {
 	}
 }
 
+// PathOverride, when non-empty, is used as the exact config file path.
+// Set via the --config CLI flag.
+var PathOverride string
+
 // DirOverride, when non-empty, replaces the default config directory.
 // This exists so tests can redirect all config I/O to a temp directory.
 var DirOverride string
 
 func ConfigPath() (string, error) {
+	if PathOverride != "" {
+		return PathOverride, nil
+	}
 	if DirOverride != "" {
 		return filepath.Join(DirOverride, "config.yaml"), nil
 	}
@@ -88,6 +97,10 @@ func Load() (*Config, error) {
 	}
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
+		// Check for legacy config.json and migrate if found
+		if migrated, mErr := migrateJSON(path); mErr == nil && migrated {
+			return Load()
+		}
 		cfg := DefaultConfig()
 		if err := bootstrap(path, cfg); err != nil {
 			return nil, err
@@ -105,6 +118,30 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 	return &cfg, nil
+}
+
+// migrateJSON looks for a config.json next to the expected config.yaml path,
+// converts it to YAML, writes config.yaml, and renames the old file to config.json.bak.
+// Returns true if migration occurred.
+func migrateJSON(yamlPath string) (bool, error) {
+	jsonPath := strings.TrimSuffix(yamlPath, ".yaml") + ".json"
+	data, err := os.ReadFile(jsonPath)
+	if err != nil {
+		return false, err
+	}
+
+	var cfg Config
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return false, err
+	}
+
+	if err := bootstrap(yamlPath, &cfg); err != nil {
+		return false, err
+	}
+
+	// Rename old file so it's not picked up again
+	os.Rename(jsonPath, jsonPath+".bak")
+	return true, nil
 }
 
 func Save(cfg *Config) error {

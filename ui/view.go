@@ -59,6 +59,22 @@ func (m Model) View() string {
 	}
 	labelWidth := maxLabelLen + 2
 
+	// Determine how many hour columns fit in the terminal width.
+	// Label uses labelWidth + 1 (PaddingRight). Each cell uses cellWidth + 1 (PaddingRight).
+	labelTotal := labelWidth + 1
+	cellTotal := cellWidth + 1
+	visibleCols := numHours
+	if m.width > 0 {
+		available := m.width - labelTotal
+		if available < cellTotal {
+			available = cellTotal
+		}
+		fit := available / cellTotal
+		if fit < visibleCols {
+			visibleCols = fit
+		}
+	}
+
 	// Anchor the window at midnight in the local timezone so column 0 = hour 0.
 	utcNow := m.now.UTC()
 	currentHour := utcNow.Truncate(time.Hour)
@@ -81,13 +97,13 @@ func (m Model) View() string {
 	midnight := time.Date(localNow.Year(), localNow.Month(), localNow.Day(), 0, 0, 0, 0, localLoc)
 	windowStart := midnight.UTC().Add(time.Duration(m.scrollOffset) * time.Hour)
 
+	errorStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#ff0000"))
+
 	var rows []string
 
 	for rowIdx, tz := range cfg.Timezones {
 		loc, err := time.LoadLocation(tz.Timezone)
-		if err != nil {
-			continue
-		}
 
 		isLocalRow := rowIdx == localIdx
 
@@ -110,7 +126,14 @@ func (m Model) View() string {
 		var row strings.Builder
 		row.WriteString(labelStyle.Render(tz.Label))
 
-		for col := 0; col < numHours; col++ {
+		// Invalid timezone — show error message instead of hour cells
+		if err != nil {
+			row.WriteString(errorStyle.Render("invalid timezone: " + tz.Timezone))
+			rows = append(rows, row.String())
+			continue
+		}
+
+		for col := 0; col < visibleCols; col++ {
 			colTime := windowStart.Add(time.Duration(col) * time.Hour)
 			localHour := colTime.In(loc).Hour()
 			isCurrentCol := colTime.Equal(currentHour)

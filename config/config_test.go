@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -156,5 +157,64 @@ func TestSaveOverwritesExistingFile(t *testing.T) {
 	if len(loaded.Timezones) != len(modified.Timezones) {
 		t.Errorf("expected %d timezones after save, got %d",
 			len(modified.Timezones), len(loaded.Timezones))
+	}
+}
+
+func TestMigrateJSONToYAML(t *testing.T) {
+	useTempDir(t)
+
+	// Write a legacy config.json in the temp dir
+	cfg := DefaultConfig()
+	cfg.Timezones = cfg.Timezones[:2] // Use fewer timezones to distinguish from default
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal json: %v", err)
+	}
+
+	jsonPath := filepath.Join(DirOverride, "config.json")
+	if err := os.WriteFile(jsonPath, data, 0644); err != nil {
+		t.Fatalf("write json: %v", err)
+	}
+
+	// Load should detect the JSON, migrate it, and return the config
+	loaded, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	if len(loaded.Timezones) != 2 {
+		t.Errorf("expected 2 timezones from migrated config, got %d", len(loaded.Timezones))
+	}
+
+	// config.yaml should now exist
+	yamlPath := filepath.Join(DirOverride, "config.yaml")
+	if _, err := os.Stat(yamlPath); os.IsNotExist(err) {
+		t.Error("config.yaml was not created during migration")
+	}
+
+	// config.json should have been renamed to config.json.bak
+	if _, err := os.Stat(jsonPath); !os.IsNotExist(err) {
+		t.Error("config.json should have been renamed to .bak")
+	}
+	bakPath := jsonPath + ".bak"
+	if _, err := os.Stat(bakPath); os.IsNotExist(err) {
+		t.Error("config.json.bak was not created")
+	}
+}
+
+func TestPathOverride(t *testing.T) {
+	tmp := t.TempDir()
+	customPath := filepath.Join(tmp, "custom", "my-config.yaml")
+
+	old := PathOverride
+	PathOverride = customPath
+	t.Cleanup(func() { PathOverride = old })
+
+	path, err := ConfigPath()
+	if err != nil {
+		t.Fatalf("ConfigPath: %v", err)
+	}
+	if path != customPath {
+		t.Errorf("expected %q, got %q", customPath, path)
 	}
 }

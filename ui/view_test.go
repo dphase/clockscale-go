@@ -314,6 +314,61 @@ func TestCellsHavePadding(t *testing.T) {
 	}
 }
 
+func TestInvalidTimezoneShowsErrorRow(t *testing.T) {
+	cfg := testConfig()
+	cfg.Timezones = append(cfg.Timezones, config.TimezoneConfig{
+		Timezone: "Not/A/Real/Zone",
+		Label:    "BAD",
+	})
+	m := New(cfg)
+	m.width = 120
+
+	view := m.View()
+	stripped := ansiRe.ReplaceAllString(view, "")
+
+	if !strings.Contains(stripped, "BAD") {
+		t.Error("error row should still display the label")
+	}
+	if !strings.Contains(stripped, "invalid timezone: Not/A/Real/Zone") {
+		t.Error("error row should display the invalid timezone message")
+	}
+
+	// Valid timezones should still render normally
+	if !strings.Contains(stripped, "CDT") {
+		t.Error("valid timezone CDT should still render")
+	}
+}
+
+func TestNarrowTerminalLimitsColumns(t *testing.T) {
+	cfg := testConfig()
+	m := New(cfg)
+
+	// Wide terminal — all 24 hours should appear
+	m.width = 200
+	wideView := m.View()
+	wideLine := strings.Split(wideView, "\n")[0]
+	wideStripped := ansiRe.ReplaceAllString(wideLine, "")
+	wideFields := strings.Fields(wideStripped)
+	// Label + 24 hours = 25 fields
+	wideCount := len(wideFields) - 1 // subtract label
+
+	// Narrow terminal — fewer columns should appear
+	m.width = 40
+	narrowView := m.View()
+	narrowLine := strings.Split(narrowView, "\n")[0]
+	narrowStripped := ansiRe.ReplaceAllString(narrowLine, "")
+	narrowFields := strings.Fields(narrowStripped)
+	narrowCount := len(narrowFields) - 1
+
+	if narrowCount >= wideCount {
+		t.Errorf("narrow terminal (%d cols) should show fewer hours than wide (%d cols), got narrow=%d wide=%d",
+			40, 200, narrowCount, wideCount)
+	}
+	if narrowCount < 1 {
+		t.Error("narrow terminal should still show at least 1 hour column")
+	}
+}
+
 func TestDeleteModeNavigateAndDelete(t *testing.T) {
 	useTempConfigDir(t)
 	cfg := testConfig()
