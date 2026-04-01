@@ -111,6 +111,6 @@ The `local: true` flag marks which row receives the distinct orange highlight fo
 
 ## Requirements
 
-- Terminal with true color support
+- Terminal with true color support (e.g. iTerm2, Alacritty, Windows Terminal)
 - Minimum 80 columns recommended
-- macOS or Linux
+- macOS, Linux, or Windows

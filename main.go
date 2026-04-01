@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -11,7 +12,7 @@ import (
 	"clockscale/ui"
 )
 
-const version = "1.2.4"
+const version = "1.2.5"
 
 func main() {
 	var (
@@ -51,9 +52,12 @@ func main() {
 
 	// Save current terminal title and set ours.
 	// OSC 22 pushes the current title onto a stack; OSC 23 pops it back.
-	fmt.Fprint(os.Stdout, "\033[22;0t")           // push current title
-	fmt.Fprint(os.Stdout, "\033]0;Clockscale\007") // set new title
-	defer fmt.Fprint(os.Stdout, "\033[23;0t")      // pop (restore) on exit
+	// Skip on Windows where legacy consoles may not support these sequences.
+	if runtime.GOOS != "windows" {
+		fmt.Fprint(os.Stdout, "\033[22;0t")           // push current title
+		fmt.Fprint(os.Stdout, "\033]0;Clockscale\007") // set new title
+		defer fmt.Fprint(os.Stdout, "\033[23;0t")      // pop (restore) on exit
+	}
 
 	p := tea.NewProgram(
 		ui.New(cfg),

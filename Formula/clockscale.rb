@@ -1,7 +1,7 @@
 class Clockscale < Formula
   desc "Terminal UI for viewing multiple timezones in a 24-hour grid"
   homepage "https://github.com/dphase/clockscale-go"
-  url "https://github.com/dphase/clockscale-go/archive/refs/tags/v1.2.4.tar.gz"
+  url "https://github.com/dphase/clockscale-go/archive/refs/tags/v1.2.5.tar.gz"
   sha256 ""
   license "MIT"
 
