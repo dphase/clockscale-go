@@ -86,7 +86,9 @@ func (m Model) handleAddKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				Timezone: tzName,
 				Label:    tzName,
 			})
-			config.Save(m.config)
+			if err := config.Save(m.config); err != nil {
+				m.errMsg = "failed to save config: " + err.Error()
+			}
 		}
 		m.state = stateNormal
 		m.input = ""
@@ -113,7 +115,9 @@ func (m Model) handleDeleteKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.config.Timezones[:m.cursor],
 				m.config.Timezones[m.cursor+1:]...,
 			)
-			config.Save(m.config)
+			if err := config.Save(m.config); err != nil {
+				m.errMsg = "failed to save config: " + err.Error()
+			}
 		}
 		m.state = stateNormal
 	case "esc":

@@ -140,7 +140,7 @@ func migrateJSON(yamlPath string) (bool, error) {
 	}
 
 	// Rename old file so it's not picked up again
-	os.Rename(jsonPath, jsonPath+".bak")
+	_ = os.Rename(jsonPath, jsonPath+".bak")
 	return true, nil
 }
 
